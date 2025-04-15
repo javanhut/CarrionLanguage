@@ -73,6 +73,7 @@ pub enum TokenType {
     For,
     In,
     While,
+    Loop,
     Stop,
     Skip,
     Ignore,
@@ -133,4 +134,50 @@ impl Token {
             column: 0,
         }
     }
+}
+
+static KEYWORDS: Lazy<Hashmap<&'static str, TokenType>> = Lazy::new(|| {
+    let mut map = Hashmap::new();
+    map.insert("import", TokenType::Import);
+    map.insert("match", TokenType::Match);
+    map.insert("case", TokenType::Case);
+    map.insert("spell", TokenType::Spell);
+    map.insert("self", TokenType::SelfKeyword);
+    map.insert("init", TokenType::Init);
+    map.insert("grim", TokenType::Grimoire);
+    map.insert("True", TokenType::True);
+    map.insert("False", TokenType::False);
+    map.insert("if", TokenType::If);
+    map.insert("else", TokenType::Else);
+    map.insert("otherwise", TokenType::Otherwise);
+    map.insert("for", TokenType::For);
+    map.insert("loop", TokenType::Loop);
+    map.insert("in", TokenType::In);
+    map.insert("stop", TokenType::Stop);
+    map.insert("skip", TokenType::Skip);
+    map.insert("ignore", TokenType::Ignore);
+    map.insert("and", TokenType::And);
+    map.insert("or", TokenType::Or);
+    map.insert("not", TokenType::Not);
+    map.insert("return", TokenType::Return);
+    map.insert("attempt", TokenType::Attempt);
+    map.insert("resolve", TokenType::Resolve);
+    map.insert("ensnare", TokenType::Ensnare);
+    map.insert("raise", TokenType::Raise);
+    map.insert("as", TokenType::As);
+    map.insert("arcane", TokenType::Arcane);
+    map.insert("arcanespell", TokenType::ArcaneSpell);
+    map.insert("super", TokenType::Super);
+    map.insert("check", TokenType::Check);
+    map.insert("maybe", TokenType::Maybe);
+    map.insert("None", TokenType::NoneKeyword);
+    map.insert("while", TokenType::While);
+    map
+});
+
+pub fn lookup_identifier(identifier: &str) -> TokenType {
+    KEYWORDS
+        .get(identifier)
+        .copied()
+        .unwrap_or(TokenType::Identifier)
 }
