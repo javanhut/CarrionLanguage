@@ -134,6 +134,11 @@ impl Token {
             column: 0,
         }
     }
+
+    pub fn to_string() -> String {
+        let string_val = self.token_type + " " + self.literal;
+        string_val
+    }
 }
 
 static KEYWORDS: Lazy<Hashmap<&'static str, TokenType>> = Lazy::new(|| {
