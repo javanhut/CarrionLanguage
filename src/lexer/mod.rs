@@ -50,11 +50,18 @@ impl Lexer {
             '}' => self.add_token(TokenType::RightBrace),
             '@' => self.add_token(TokenType::At),
             '%' => self.add_token(TokenType::Mod),
+            ',' => self.add_token(TokenType::Comma),
+            ':' => self.add_token(TokenType::Colon),
+            '.' => self.add_token(TokenType::Dot),
+            '|' => self.add_token(TokenType::Pipe),
+            '~' => self.add_token(TokenType::Tilde),
+            '^' => self.add_token(TokenType::Xor),
             '/' => {
                 if self.match_char('/') {
                     while self.peek() != Some('\n') && !self.is_at_end() {
                         self.advance();
-                    } else if self.match_char('*') {
+                    }
+                } else if self.match_char('*') {
                         self.block_comment();
                     } else if self.match_char('=') {
                         self.add_token(TokenType::SlashAssign);
@@ -63,11 +70,17 @@ impl Lexer {
                     }
                 }
             }
+            '_' => {
+                let t = if self.match_char('_') {TokenType::DoubleUnderscore} else {TokenType::Underscore};
+                self.add_token(t);
+            }
+            '\'' | '"' => self.string(),
+            '#' => self.add_token(TokenType::Hash),
             '!' => {
                 let t = if self.match_char('=') {
                     TokenType::NotEqual
                 } else {
-                    TokenType::Not
+                    TokenType::Shebang
                 };
                 self.add_token(t);
             }
@@ -137,7 +150,17 @@ impl Lexer {
             }
 
 
-            _ => self.add_token(TokenType::Illegal),
+            _ => {
+        if c.is_ascii_digit() {
+                self.number();
+            } else if c.is_ascii_alphabetic() || c == '_' {
+                self.identifier(&KEYWORDS);
+            } else {
+                eprintln!("[Line {}, Col ~{}] Error: Unexpected character '{}'", self.line, self.start, c);
+
+                self.add_token(TokenType::Illegal);
+            }
+    }
         }
     }
     fn is_at_end(&self) -> bool {
@@ -207,7 +230,8 @@ impl Lexer {
         }
         self.advance();
         let value = &self.source[self.start + 1..self.current - 1];
-        self.add_token_literal(TokenType::String, value);
+        let literal_value - LiteralValue::String(value.to_string());
+        self.add_token_literal(TokenType::String, Some(literal_value));
     }
     fn number(&mut self) {
         while self.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
