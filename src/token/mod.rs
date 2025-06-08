@@ -1,8 +1,10 @@
-use ::path::Pathbuf;
 use once_cell::sync::Lazy;
-use std::collections::Hashmap;
+use std::collections::HashMap;
 use std::fmt;
+use std::path::PathBuf;
 
+// ─── Token kinds ──────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TokenType {
     // Special Characters
     Illegal,
@@ -15,7 +17,7 @@ pub enum TokenType {
     Identifier,
     Integer,
     Float,
-    String,
+    StringLit,
     Docstring,
 
     // Operators
@@ -42,6 +44,7 @@ pub enum TokenType {
     Ampersand,
     Hash,
     At,
+
     // Delimiters
     Comma,
     Colon,
@@ -94,32 +97,56 @@ pub enum TokenType {
     Check,
     NoneKeyword,
 
-    // Operators
+    // Logical operators
     And,
     Or,
     Not,
 }
 
+// ─── Token struct ─────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub literal: String,
-    pub file_name: Pathbuf,
+    pub file_name: PathBuf,
     pub line: usize,
     pub column: usize,
 }
 
+// Display implementations give you `to_string()` for free
+impl fmt::Display for TokenType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}:{}:{}  {}({})",
+            self.file_name.display(),
+            self.line,
+            self.column,
+            self.token_type,
+            self.literal
+        )
+    }
+}
+
+// ─── Convenience constructors ────────────────────────────────────────────────
 impl Token {
     pub fn new(
         token_type: TokenType,
-        literal: String,
-        file_name: PathBuf,
+        literal: impl Into<String>,
+        file_name: impl Into<PathBuf>,
         line: usize,
         column: usize,
     ) -> Self {
         Token {
             token_type,
-            literal,
-            file_name,
+            literal: literal.into(),
+            file_name: file_name.into(),
             line,
             column,
         }
@@ -134,55 +161,53 @@ impl Token {
             column: 0,
         }
     }
-
-    pub fn to_string() -> String {
-        let string_val = self.token_type + " " + self.literal;
-        string_val
-    }
 }
 
-static KEYWORDS: Lazy<Hashmap<&'static str, TokenType>> = Lazy::new(|| {
-    let mut map = Hashmap::new();
-    map.insert("import", TokenType::Import);
-    map.insert("match", TokenType::Match);
-    map.insert("case", TokenType::Case);
-    map.insert("spell", TokenType::Spell);
-    map.insert("self", TokenType::SelfKeyword);
-    map.insert("init", TokenType::Init);
-    map.insert("grim", TokenType::Grimoire);
-    map.insert("True", TokenType::True);
-    map.insert("False", TokenType::False);
-    map.insert("if", TokenType::If);
-    map.insert("else", TokenType::Else);
-    map.insert("otherwise", TokenType::Otherwise);
-    map.insert("for", TokenType::For);
-    map.insert("loop", TokenType::Loop);
-    map.insert("in", TokenType::In);
-    map.insert("stop", TokenType::Stop);
-    map.insert("skip", TokenType::Skip);
-    map.insert("ignore", TokenType::Ignore);
-    map.insert("and", TokenType::And);
-    map.insert("or", TokenType::Or);
-    map.insert("not", TokenType::Not);
-    map.insert("return", TokenType::Return);
-    map.insert("attempt", TokenType::Attempt);
-    map.insert("resolve", TokenType::Resolve);
-    map.insert("ensnare", TokenType::Ensnare);
-    map.insert("raise", TokenType::Raise);
-    map.insert("as", TokenType::As);
-    map.insert("arcane", TokenType::Arcane);
-    map.insert("arcanespell", TokenType::ArcaneSpell);
-    map.insert("super", TokenType::Super);
-    map.insert("check", TokenType::Check);
-    map.insert("maybe", TokenType::Maybe);
-    map.insert("None", TokenType::NoneKeyword);
-    map.insert("while", TokenType::While);
+// ─── Keyword lookup table ─────────────────────────────────────────────────────
+pub static KEYWORDS: Lazy<HashMap<&'static str, TokenType>> = Lazy::new(|| {
+    use TokenType::*;
+
+    let mut map = HashMap::with_capacity(40);
+    map.insert("import", Import);
+    map.insert("match", Match);
+    map.insert("case", Case);
+    map.insert("spell", Spell);
+    map.insert("self", SelfKeyword);
+    map.insert("init", Init);
+    map.insert("grim", Grimoire);
+    map.insert("true", True);
+    map.insert("false", False);
+    map.insert("if", If);
+    map.insert("else", Else);
+    map.insert("otherwise", Otherwise);
+    map.insert("for", For);
+    map.insert("loop", Loop);
+    map.insert("in", In);
+    map.insert("stop", Stop);
+    map.insert("skip", Skip);
+    map.insert("ignore", Ignore);
+    map.insert("and", And);
+    map.insert("or", Or);
+    map.insert("not", Not);
+    map.insert("return", Return);
+    map.insert("attempt", Attempt);
+    map.insert("resolve", Resolve);
+    map.insert("ensnare", Ensnare);
+    map.insert("raise", Raise);
+    map.insert("as", As);
+    map.insert("arcane", Arcane);
+    map.insert("arcanespell", ArcaneSpell);
+    map.insert("super", Super);
+    map.insert("check", Check);
+    map.insert("maybe", Maybe);
+    map.insert("none", NoneKeyword);
+    map.insert("while", While);
     map
 });
 
-pub fn lookup_identifier(identifier: &str) -> TokenType {
+pub fn lookup_identifier(ident: &str) -> TokenType {
     KEYWORDS
-        .get(identifier)
+        .get(&ident.to_ascii_lowercase()[..])
         .copied()
         .unwrap_or(TokenType::Identifier)
 }

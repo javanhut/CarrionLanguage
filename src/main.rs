@@ -2,7 +2,13 @@ use std::env;
 use std::path::PathBuf;
 use std::process;
 
+mod ast;
+mod error;
+mod evaluator;
+mod lexer;
+mod object;
 mod repl;
+mod token;
 fn main() {
     let mut args = env::args();
     args.next();
