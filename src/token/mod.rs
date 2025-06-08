@@ -32,8 +32,8 @@ pub enum TokenType {
     MinusAssign,
     AsteriskAssign,
     SlashAssign,
-    PlusPlusIncrement,
-    MinusMinusDecrement,
+    Increment,
+    Decrement,
     Equality,
     NotEqual,
     LessThan,
@@ -44,7 +44,8 @@ pub enum TokenType {
     Ampersand,
     Hash,
     At,
-
+    LeftArrow,
+    RightArrow,
     // Delimiters
     Comma,
     Colon,

@@ -128,7 +128,7 @@ impl Lexer {
             '~' => self.add_simple(TokenType::Tilde),
             '^' => self.add_simple(TokenType::Xor),
             '#' => self.add_simple(TokenType::Hash),
-
+            '&' => self.add_simple(TokenType::Ampersand),
             // operators that need look-ahead -----------------------------------
             '/' => {
                 if self.match_char('/') {
@@ -185,6 +185,8 @@ impl Lexer {
                     TokenType::LessThanEqual
                 } else if self.match_char('<') {
                     TokenType::LeftShift
+                } else if self.match_char('-') {
+                    TokenType::LeftArrow
                 } else {
                     TokenType::LessThan
                 };
@@ -200,7 +202,7 @@ impl Lexer {
             }
             '+' => {
                 let kind = if self.match_char('+') {
-                    TokenType::PlusPlusIncrement
+                    TokenType::Increment
                 } else if self.match_char('=') {
                     TokenType::PlusAssign
                 } else {
@@ -210,9 +212,11 @@ impl Lexer {
             }
             '-' => {
                 let kind = if self.match_char('-') {
-                    TokenType::MinusMinusDecrement
+                    TokenType::Decrement
                 } else if self.match_char('=') {
                     TokenType::MinusAssign
+                } else if self.match_char('-') {
+                    TokenType::RightArrow
                 } else {
                     TokenType::Minus
                 };

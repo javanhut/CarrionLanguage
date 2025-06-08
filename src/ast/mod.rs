@@ -10,6 +10,7 @@ pub enum Statement {
     While(WhileStatement),
     For(ForStatement),
     Assignment(Assignment),
+    CompoundAssignment(CompoundAssignment),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -25,8 +26,10 @@ pub enum Expression {
     },
     Prefix(PrefixExpression),
     Infix(InfixExpression),
+    Postfix(PostfixExpression),
     Index(IndexExpression),
     Call(CallExpression),
+    Unpack(UnpackExpression),
 }
 
 pub type BlockStatement = Vec<Statement>;
@@ -61,12 +64,12 @@ pub struct WhileStatement {
 pub struct ForStatement {
     pub target: Identifier,
     pub iter: Box<Expression>,
-    pub body: Expression,
+    pub body: BlockStatement,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Assignment {
-    pub target: Identifier,
+    pub targets: Vec<Expression>,
     pub value: Box<Expression>,
 }
 
@@ -83,10 +86,12 @@ pub enum Operator {
     And,
     Or,
     Not,
-    PlusPlus,
-    MinusMinus,
-    PlusPlusIncrement,
-    MinusMinusDecrement,
+    Increment,  // ++
+    Decrement,  // --
+    PlusAssign, // +=
+    MinusAssgn, // -=
+    AstriskAssign,
+    SlashAssign,
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct PrefixExpression {
@@ -100,6 +105,13 @@ pub struct InfixExpression {
     pub operator: Operator,
     pub right: Box<Expression>,
 }
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PostfixExpression {
+    pub left: Box<Expression>,
+    pub operator: Operator,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct IndexExpression {
     pub object: Box<Expression>,
@@ -107,16 +119,29 @@ pub struct IndexExpression {
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct CallExpression {
-    pub fuction: Box<Expression>,
+    pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnpackExpression {
+    pub value: Box<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct CompoundAssignment {
+    pub target: Expression,
+    pub operator: Operator,
+    pub value: Box<Expression>,
+}
+
 impl Program {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Program { statements: vec![] }
     }
 }
