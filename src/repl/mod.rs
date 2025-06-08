@@ -1,10 +1,6 @@
+use crate::{evaluator, lexer, object, parser};
 use indoc::indoc;
-use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
-
-use crate::lexer::Lexer;
-use crate::token::TokenType;
 
 const CROW_IMAGE: &str = indoc! {
     "
@@ -26,28 +22,10 @@ const CROW_IMAGE: &str = indoc! {
   "
 };
 
-// ───── Helper: tokenize a file and dump tokens to stdout ──────────────────────
-pub fn read_and_tokenize_file(file_path: &Path) -> io::Result<()> {
-    let src = fs::read_to_string(file_path)?;
-    let mut lexer = Lexer::new(src, file_path.into());
-    let tokens = lexer.scan_tokens();
-
-    for tok in tokens {
-        println!(
-            "Token Type: {:<15}, TokenLiteral: {}",
-            tok.token_type, tok.literal
-        );
-    }
-
-    Ok(())
-}
-
-// ───── Interactive REPL (lexes each user line) ───────────────────────────────
+// ───── Interactive REPL ───────────────────────────────────────────────
 pub fn run_repl() {
     let mut line_input = String::new();
-
     println!("{CROW_IMAGE}");
-    println!("Welcome to the Carrion REPL!");
     println!("Type 'quit' or 'exit' to leave.\n");
 
     loop {
@@ -65,12 +43,28 @@ pub fn run_repl() {
             break;
         }
 
-        // Tokenize the user’s input line
-        let mut lexer = Lexer::new(input.to_owned(), "<stdin>".into());
-        for tok in lexer.scan_tokens() {
-            if tok.token_type != TokenType::Eof {
-                println!("{:<15}  {}", tok.token_type, tok.literal);
+        if input.is_empty() {
+            continue;
+        }
+
+        // --- The Full Pipeline ---
+        let mut lexer = lexer::Lexer::new(input.to_owned(), "<stdin>".into());
+        let tokens = lexer.scan_tokens();
+
+        let mut parser = parser::Parser::new(tokens);
+        let program = parser.parse_program();
+
+        if !parser.errors().is_empty() {
+            eprintln!("Parsing Error(s):");
+            for err in parser.errors() {
+                eprintln!("\t{}", err);
             }
+            continue; // Go to next loop iteration
+        }
+
+        match evaluator::eval(&program) {
+            Ok(evaluated) => println!("{}", evaluated),
+            Err(e) => eprintln!("Evaluation Error: {}", e),
         }
     }
 }
