@@ -1,6 +1,25 @@
 use crate::ast::{BlockStatement, Identifier};
 use std::collections::HashMap;
-use std::fmt;
+use std::fmt::{self, Debug, Formatter};
+
+pub type BuiltinFunction = fn(Vec<Object>) -> Result<Object, String>;
+
+#[derive(Clone)]
+pub struct Builtin {
+    pub func: BuiltinFunction,
+}
+
+impl PartialEq for Builtin {
+    fn eq(&self, other: &Self) -> bool {
+        self.func as usize == other.func as usize
+    }
+}
+
+impl Debug for Builtin {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "[BuiltinFunction]")
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -13,6 +32,7 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Function(Function),
     Error(String),
+    Builtin(Builtin),
     None,
 }
 
@@ -20,6 +40,7 @@ pub enum Object {
 pub struct Function {
     pub parameters: Vec<Identifier>,
     pub body: BlockStatement,
+    // Environment will be stored externally to avoid circular dependency
 }
 
 impl std::hash::Hash for Object {
@@ -36,7 +57,7 @@ impl std::hash::Hash for Object {
 impl Eq for Object {}
 
 impl fmt::Display for Object {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Object::Integer(val) => write!(f, "{}", val),
             Object::Float(val) => write!(f, "{}", val),
@@ -52,6 +73,7 @@ impl fmt::Display for Object {
             }
             Object::ReturnValue(val) => write!(f, "{}", val),
             Object::Function(_) => write!(f, "[Function]"),
+            Object::Builtin(_) => write!(f, "[Builtin Function]"),
             Object::Error(msg) => write!(f, "Error: {}", msg),
             Object::None => write!(f, "none"),
         }

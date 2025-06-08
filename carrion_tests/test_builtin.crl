@@ -1,0 +1,6 @@
+print("Hello, World!")
+print("Testing", "multiple", "arguments")
+print(42)
+print(3.14)
+print(true)
+print(false)

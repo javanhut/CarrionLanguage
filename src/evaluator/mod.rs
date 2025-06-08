@@ -1,46 +1,38 @@
-use crate::ast::Operator;
-use crate::ast::{Expression, Program, Statement};
-use crate::object::{Function, Object};
+pub mod builtins;
+pub mod environment;
+
+use crate::ast::{Expression, Identifier, Operator, Program, Statement};
+use crate::object::{Builtin, BuiltinFunction, Function, Object};
+use environment::Environment;
 
 pub fn eval(program: &Program) -> Result<Object, String> {
-    eval_program(program)
+    let mut env = Environment::new();
+    eval_program(program, &mut env)
 }
 
-fn eval_program(program: &Program) -> Result<Object, String> {
-    // This variable will now hold the result of the last evaluated statement.
+fn eval_program(program: &Program, env: &mut Environment) -> Result<Object, String> {
     let mut result = Object::None;
-
     for statement in &program.statements {
-        let value = eval_statement(statement)?;
+        let value = eval_statement(statement, env)?;
 
-        // If a statement returns a `ReturnValue`, we must stop execution
-        // and return the unwrapped value immediately.
         if let Object::ReturnValue(return_val) = value {
             return Ok(*return_val);
         }
-
-        // --- THIS IS THE FIX ---
-        // Update the result with the value of the statement we just evaluated.
         result = value;
     }
-
     Ok(result)
 }
 
-// The rest of the file remains the same...
-
-fn eval_statement(statement: &Statement) -> Result<Object, String> {
+fn eval_statement(statement: &Statement, env: &mut Environment) -> Result<Object, String> {
     match statement {
-        // A statement that is just an expression produces a value.
-        Statement::Expression(expr_stmt) => eval_expression(expr_stmt),
+        Statement::Expression(expr_stmt) => eval_expression(expr_stmt, env),
         Statement::Return(ret_stmt) => {
             let value = match &ret_stmt.value {
-                Some(expr) => eval_expression(expr)?,
+                Some(expr) => eval_expression(expr, env)?,
                 None => Object::None,
             };
             Ok(Object::ReturnValue(Box::new(value)))
         }
-        // TODO: Add cases for other statement types: Assignment, If, For, etc.
         _ => Err(format!(
             "Evaluation for this statement type is not yet implemented: {:?}",
             statement
@@ -48,28 +40,53 @@ fn eval_statement(statement: &Statement) -> Result<Object, String> {
     }
 }
 
-fn eval_expression(expression: &Expression) -> Result<Object, String> {
+fn eval_expression(expression: &Expression, env: &mut Environment) -> Result<Object, String> {
     match expression {
+        Expression::Identifier(ident) => eval_identifier(ident, env),
         Expression::IntegerLiteral(val) => Ok(Object::Integer(*val)),
         Expression::FloatLiteral(val) => Ok(Object::Float(*val)),
         Expression::BooleanLiteral(val) => Ok(Object::Boolean(*val)),
         Expression::StringLiteral(val) => Ok(Object::String(val.clone())),
 
-        Expression::Infix(infix_expr) => {
-            let left = eval_expression(&infix_expr.left)?;
-            let right = eval_expression(&infix_expr.right)?;
-            eval_infix_expression(&infix_expr.operator, left, right)
-        }
-
         Expression::Prefix(prefix_expr) => {
-            let right = eval_expression(&prefix_expr.right)?;
+            let right = eval_expression(&prefix_expr.right, env)?;
             eval_prefix_expression(&prefix_expr.operator, right)
         }
-
+        Expression::Infix(infix_expr) => {
+            let left = eval_expression(&infix_expr.left, env)?;
+            let right = eval_expression(&infix_expr.right, env)?;
+            eval_infix_expression(&infix_expr.operator, left, right)
+        }
+        Expression::Call(call_expr) => {
+            let function_obj = eval_expression(&call_expr.function, env)?;
+            let mut args = Vec::new();
+            for arg_expr in &call_expr.arguments {
+                args.push(eval_expression(arg_expr, env)?);
+            }
+            apply_function(function_obj, args)
+        }
         _ => Err(format!(
             "Evaluation for this expression type is not yet implemented: {:?}",
             expression
         )),
+    }
+}
+
+fn apply_function(func: Object, args: Vec<Object>) -> Result<Object, String> {
+    match func {
+        Object::Builtin(builtin) => (builtin.func)(args),
+        Object::Function(_user_func) => {
+            Err("User-defined function calls not yet implemented.".to_string())
+        }
+        _ => Err(format!("Not a function: {}", func)),
+    }
+}
+
+fn eval_identifier(ident: &Identifier, env: &Environment) -> Result<Object, String> {
+    if let Some(val) = env.get(&ident.0) {
+        Ok(val.clone())
+    } else {
+        Err(format!("Identifier not found: {}", ident.0))
     }
 }
 
