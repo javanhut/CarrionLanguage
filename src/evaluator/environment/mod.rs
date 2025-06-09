@@ -15,8 +15,12 @@ impl Environment {
                 func: super::builtins::builtin_print,
             }), // Assuming builtins.rs
         );
-        // Add other built-ins like len(), type(), etc. here
-        // ---
+        store.insert(
+            "len".to_string(),
+            Object::Builtin(crate::object::Builtin {
+                func: super::builtins::builtin_length,
+            }),
+        );
 
         Self { store }
     }

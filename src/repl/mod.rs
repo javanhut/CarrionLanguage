@@ -1,7 +1,7 @@
 use crate::{evaluator, lexer, parser};
 use indoc::indoc;
-use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use rustyline::error::ReadlineError;
 
 const CROW_IMAGE: &str = indoc! {
     "
@@ -26,16 +26,16 @@ const CROW_IMAGE: &str = indoc! {
 fn run_help_interactive() {
     println!("\nWelcome to the Carrion Language Help System!");
     println!("Type 'topics' to see available help topics, or 'exit' to return to REPL.\n");
-    
+
     let mut rl = DefaultEditor::new().expect("Failed to create help line editor");
-    
+
     loop {
         let readline = rl.readline("help>>> ");
         match readline {
             Ok(line) => {
                 let input = line.trim().to_lowercase();
                 rl.add_history_entry(&line).ok();
-                
+
                 match input.as_str() {
                     "exit" | "quit" | "back" => {
                         println!("Returning to REPL...\n");
@@ -66,7 +66,10 @@ fn run_help_interactive() {
                         print_builtins_help();
                     }
                     _ => {
-                        println!("Unknown topic: '{}'. Type 'topics' to see available topics.", input);
+                        println!(
+                            "Unknown topic: '{}'. Type 'topics' to see available topics.",
+                            input
+                        );
                     }
                 }
             }
@@ -168,12 +171,13 @@ fn print_builtins_help() {
 
 // ───── Interactive REPL ───────────────────────────────────────────────
 pub fn run_repl() {
+    println!("Welcome to The Carrion Language Repl!");
     println!("{CROW_IMAGE}");
-    println!("Type 'quit' or 'exit' to leave.\n");
+    println!("Type type 'help' or 'scry' for help and 'quit' or 'exit' to leave.\n");
 
     // Create a new Rustyline Editor with history support
     let mut rl = DefaultEditor::new().expect("Failed to create line editor");
-    
+
     // Optionally load history from a file
     let history_path = ".carrion_history";
     let _ = rl.load_history(history_path);
@@ -183,10 +187,10 @@ pub fn run_repl() {
         match readline {
             Ok(line) => {
                 let input = line.trim();
-                
+
                 // Add to history
                 rl.add_history_entry(&line).ok();
-                
+
                 if matches!(input, "quit" | "exit") {
                     println!("Farewell. May the All-Father bless your travels!");
                     break;
@@ -235,7 +239,7 @@ pub fn run_repl() {
             }
         }
     }
-    
+
     // Save history on exit
     rl.save_history(history_path).ok();
 }
