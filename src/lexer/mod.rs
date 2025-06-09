@@ -137,7 +137,6 @@ impl Lexer {
             
             // Update start position after consuming indentation whitespace
             self.start = self.current;
-            
             // If we generated dedent tokens, return to emit them
             if self.pending_dedents > 0 {
                 return;

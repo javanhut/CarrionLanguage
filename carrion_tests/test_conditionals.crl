@@ -3,6 +3,7 @@
 // Basic if-otherwise-else
 x = 10
 if x > 15:
+
     print("x is greater than 15")
 otherwise x > 5:
     print("x is greater than 5 but not 15")
@@ -12,6 +13,7 @@ else:
 // Nested conditionals
 y = 8
 if y > 11:
+
     print("y is large")
 otherwise y > 6:
     print("y is medium")
@@ -35,6 +37,7 @@ if n:
     print("flag is true")
 else:
     print("flag is false")
+
 
 // Testing with expressions
 a = 5
