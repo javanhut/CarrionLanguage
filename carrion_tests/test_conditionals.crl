@@ -3,45 +3,48 @@
 // Basic if-otherwise-else
 x = 10
 if x > 15:
-    "x is greater than 15"
+
+    print("x is greater than 15")
 otherwise x > 5:
-    "x is greater than 5 but not 15"
+    print("x is greater than 5 but not 15")
 else:
-    "x is 5 or less"
+    print("x is 5 or less")
 
 // Nested conditionals
 y = 8
 if y > 11:
-    "y is large"
+
+    print("y is large")
 otherwise y > 6:
-    "y is medium"
+    print("y is medium")
 else:
-    "y is small"
+    print("y is small")
 // Multiple otherwise clauses
 score = 85
 if score >= 90:
-    "A grade"
+    print("A grade")
 otherwise score >= 80:
-    "B grade"
+    print("B grade")
 otherwise score >= 70:
-    "C grade"
+    print("C grade")
 otherwise score >= 60:
-    "D grade"
+    print("D grade")
 else:
-    "F grade"
+    print("F grade")
 // Testing with boolean values
 n = True
 if n:
-    "flag is true"
+    print("flag is true")
 else:
-    "flag is false"
+    print("flag is false")
+
 
 // Testing with expressions
 a = 5
 b = 3
 if a + b > 10:
-    "sum is greater than 10"
+    print("sum is greater than 10")
 otherwise a * b > 10:
-    "product is greater than 10"
+    print("product is greater than 10")
 else:
-    "neither sum nor product is greater than 10"
+    print("neither sum nor product is greater than 10")
