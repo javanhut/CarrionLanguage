@@ -1,1 +1,9 @@
-/target
+/target/
+.carrion_history
+*.swp
+*.swo
+*~
+.DS_Store
+.idea/
+.vscode/
+*.iml
