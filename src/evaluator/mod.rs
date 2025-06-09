@@ -1,7 +1,7 @@
 pub mod builtins;
 pub mod environment;
 
-use crate::ast::{Expression, Identifier, Operator, Program, Statement, Assignment, CompoundAssignment};
+use crate::ast::{Expression, Identifier, Operator, Program, Statement, Assignment, CompoundAssignment, IfStatement, WhileStatement, ForStatement, BlockStatement};
 use crate::object::{Builtin, BuiltinFunction, Function, Object};
 use environment::Environment;
 
@@ -108,6 +108,9 @@ fn eval_statement(statement: &Statement, env: &mut Environment) -> Result<Object
                 Err("Compound assignment target must be an identifier".to_string())
             }
         }
+        Statement::If(if_stmt) => eval_if_statement(if_stmt, env),
+        Statement::While(while_stmt) => eval_while_statement(while_stmt, env),
+        Statement::For(for_stmt) => eval_for_statement(for_stmt, env),
         _ => Err(format!(
             "Evaluation for this statement type is not yet implemented: {:?}",
             statement
@@ -247,6 +250,8 @@ fn eval_integer_infix_operator(
         Operator::NotEqual => Ok(Object::Boolean(left != right)),
         Operator::LessThan => Ok(Object::Boolean(left < right)),
         Operator::GreaterThan => Ok(Object::Boolean(left > right)),
+        Operator::LessThanEqual => Ok(Object::Boolean(left <= right)),
+        Operator::GreaterThanEqual => Ok(Object::Boolean(left >= right)),
         _ => Err(format!("Unknown operator for Integers: {:?}", operator)),
     }
 }
@@ -261,6 +266,8 @@ fn eval_float_infix_operator(operator: &Operator, left: f64, right: f64) -> Resu
         Operator::NotEqual => Ok(Object::Boolean(left != right)),
         Operator::LessThan => Ok(Object::Boolean(left < right)),
         Operator::GreaterThan => Ok(Object::Boolean(left > right)),
+        Operator::LessThanEqual => Ok(Object::Boolean(left <= right)),
+        Operator::GreaterThanEqual => Ok(Object::Boolean(left >= right)),
         _ => Err(format!("Unknown operator for Floats: {:?}", operator)),
     }
 }
@@ -305,4 +312,97 @@ fn eval_index_expression(object: Object, index: Object) -> Result<Object, String
         }
         _ => Err(format!("Index operation not supported for {} with index {}", object, index)),
     }
+}
+
+fn eval_if_statement(if_stmt: &IfStatement, env: &mut Environment) -> Result<Object, String> {
+    let condition = eval_expression(&if_stmt.condition, env)?;
+    
+    if is_truthy(condition) {
+        eval_block_statement(&if_stmt.consequence, env)
+    } else {
+        // Check otherwise clauses
+        for (alt_condition, alt_consequence) in &if_stmt.alternatives {
+            let alt_cond_result = eval_expression(alt_condition, env)?;
+            if is_truthy(alt_cond_result) {
+                return eval_block_statement(alt_consequence, env);
+            }
+        }
+        
+        // Check else clause
+        if let Some(default_block) = &if_stmt.default {
+            eval_block_statement(default_block, env)
+        } else {
+            Ok(Object::None)
+        }
+    }
+}
+
+fn eval_while_statement(while_stmt: &WhileStatement, env: &mut Environment) -> Result<Object, String> {
+    let mut result = Object::None;
+    
+    loop {
+        let condition = eval_expression(&while_stmt.condition, env)?;
+        if !is_truthy(condition) {
+            break;
+        }
+        
+        result = eval_block_statement(&while_stmt.body, env)?;
+        
+        // Handle return values
+        if let Object::ReturnValue(_) = result {
+            break;
+        }
+    }
+    
+    Ok(result)
+}
+
+fn eval_for_statement(for_stmt: &ForStatement, env: &mut Environment) -> Result<Object, String> {
+    let iterable = eval_expression(&for_stmt.iter, env)?;
+    let mut result = Object::None;
+    
+    match iterable {
+        Object::List(elements) => {
+            for element in elements {
+                env.set(for_stmt.target.0.clone(), element);
+                result = eval_block_statement(&for_stmt.body, env)?;
+                
+                // Handle return values
+                if let Object::ReturnValue(_) = result {
+                    break;
+                }
+            }
+        }
+        Object::String(s) => {
+            for ch in s.chars() {
+                env.set(for_stmt.target.0.clone(), Object::String(ch.to_string()));
+                result = eval_block_statement(&for_stmt.body, env)?;
+                
+                // Handle return values
+                if let Object::ReturnValue(_) = result {
+                    break;
+                }
+            }
+        }
+        _ => {
+            return Err(format!("Object is not iterable: {}", iterable));
+        }
+    }
+    
+    Ok(result)
+}
+
+fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Result<Object, String> {
+    let mut result = Object::None;
+    
+    for statement in block {
+        result = eval_statement(statement, env)?;
+        
+        // Handle return values
+        if let Object::ReturnValue(_) = result {
+            break;
+        }
+    }
+    
+    Ok(result)
 }
