@@ -78,13 +78,93 @@ impl Parser {
     }
 
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
-        let expr = self.parse_expression(Precedence::Lowest)?;
-
-        if self.peek().token_type == TokenType::Newline {
-            self.advance();
+        // Check if this could be an assignment statement
+        let checkpoint = self.current;
+        
+        // Try to parse assignment targets
+        let mut targets = Vec::new();
+        loop {
+            match self.parse_expression(Precedence::Assign) {
+                Ok(expr) => targets.push(expr),
+                Err(_) => {
+                    // Reset and parse as regular expression
+                    self.current = checkpoint;
+                    let expr = self.parse_expression(Precedence::Lowest)?;
+                    if self.peek().token_type == TokenType::Newline {
+                        self.advance();
+                    }
+                    return Ok(Statement::Expression(expr));
+                }
+            }
+            
+            // Check for comma (multiple assignment) or assignment operator
+            match self.peek().token_type {
+                TokenType::Comma => {
+                    self.advance(); // consume comma
+                    continue;
+                }
+                TokenType::Assign => {
+                    self.advance(); // consume =
+                    
+                    // Parse comma-separated values for multiple assignment
+                    let mut values = Vec::new();
+                    loop {
+                        values.push(self.parse_expression(Precedence::Assign)?);
+                        if self.peek().token_type != TokenType::Comma {
+                            break;
+                        }
+                        self.advance(); // consume comma
+                    }
+                    
+                    // If only one value, use it directly; otherwise create a List
+                    let value = if values.len() == 1 {
+                        values.into_iter().next().unwrap()
+                    } else {
+                        Expression::List(values)
+                    };
+                    
+                    if self.peek().token_type == TokenType::Newline {
+                        self.advance();
+                    }
+                    return Ok(Statement::Assignment(Assignment {
+                        targets,
+                        value: Box::new(value),
+                    }));
+                }
+                TokenType::PlusAssign | TokenType::MinusAssign | 
+                TokenType::AsteriskAssign | TokenType::SlashAssign => {
+                    if targets.len() != 1 {
+                        return Err("Compound assignment requires exactly one target".to_string());
+                    }
+                    let op_token = self.advance();
+                    let operator = match op_token.token_type {
+                        TokenType::PlusAssign => ast::Operator::Plus,
+                        TokenType::MinusAssign => ast::Operator::Minus,
+                        TokenType::AsteriskAssign => ast::Operator::Multiply,
+                        TokenType::SlashAssign => ast::Operator::Divide,
+                        _ => unreachable!(),
+                    };
+                    let value = self.parse_expression(Precedence::Lowest)?;
+                    if self.peek().token_type == TokenType::Newline {
+                        self.advance();
+                    }
+                    return Ok(Statement::CompoundAssignment(CompoundAssignment {
+                        target: targets.into_iter().next().unwrap(),
+                        operator,
+                        value: Box::new(value),
+                    }));
+                }
+                _ => {
+                    // Not an assignment, reset and parse as expression
+                    self.current = checkpoint;
+                    let expr = self.parse_expression(Precedence::Lowest)?;
+                    if self.peek().token_type == TokenType::Newline {
+                        self.advance();
+                    }
+                    return Ok(Statement::Expression(expr));
+                }
+            }
         }
-
-        Ok(Statement::Expression(expr))
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, String> {
@@ -98,6 +178,8 @@ impl Parser {
             TokenType::Minus | TokenType::Not | TokenType::Increment | TokenType::Decrement => {
                 self.parse_prefix_expression()
             }
+            TokenType::LeftBracket => self.parse_list_expression(),
+            TokenType::LeftBrace => self.parse_dict_expression(),
 
             _ => Err(format!(
                 "No prefix parsing function found for token: {}",
@@ -250,6 +332,45 @@ impl Parser {
             object: Box::new(array),
             index: Box::new(index),
         }))
+    }
+
+    fn parse_list_expression(&mut self) -> Result<Expression, String> {
+        self.consume(TokenType::LeftBracket, "Expected '[' for list literal.")?;
+        let mut elements = Vec::new();
+        
+        while self.peek().token_type != TokenType::RightBracket && !self.is_at_end() {
+            elements.push(self.parse_expression(Precedence::Lowest)?);
+            
+            if self.peek().token_type == TokenType::Comma {
+                self.advance();
+            } else if self.peek().token_type != TokenType::RightBracket {
+                return Err("Expected ',' or ']' in list literal.".to_string());
+            }
+        }
+        
+        self.consume(TokenType::RightBracket, "Expected ']' to close list literal.")?;
+        Ok(Expression::List(elements))
+    }
+
+    fn parse_dict_expression(&mut self) -> Result<Expression, String> {
+        self.consume(TokenType::LeftBrace, "Expected '{' for dictionary literal.")?;
+        let mut pairs = Vec::new();
+        
+        while self.peek().token_type != TokenType::RightBrace && !self.is_at_end() {
+            let key = self.parse_expression(Precedence::Lowest)?;
+            self.consume(TokenType::Colon, "Expected ':' after dictionary key.")?;
+            let value = self.parse_expression(Precedence::Lowest)?;
+            pairs.push((key, value));
+            
+            if self.peek().token_type == TokenType::Comma {
+                self.advance();
+            } else if self.peek().token_type != TokenType::RightBrace {
+                return Err("Expected ',' or '}' in dictionary literal.".to_string());
+            }
+        }
+        
+        self.consume(TokenType::RightBrace, "Expected '}' to close dictionary literal.")?;
+        Ok(Expression::Dict { pairs })
     }
 
     fn peek(&self) -> &Token {

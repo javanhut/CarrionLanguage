@@ -1,0 +1,42 @@
+# Test simple assignment
+x = 10
+print(x)
+
+# Test string assignment
+message = "Hello, Carrion!"
+print(message)
+
+# Test float assignment
+pi = 3.14159
+print(pi)
+
+# Test boolean assignment
+is_true = True
+is_false = False
+print(is_true)
+print(is_false)
+
+# Test compound assignment
+count = 5
+count += 3
+print(count)  # Should print 8
+
+count -= 2
+print(count)  # Should print 6
+
+count *= 2
+print(count)  # Should print 12
+
+count /= 3
+print(count)  # Should print 4
+
+# Test multiple assignment (if properly implemented)
+# a, b = 10, 20
+# print(a)
+# print(b)
+
+# Test reassignment
+x = 100
+print(x)
+x = "Now I'm a string"
+print(x)

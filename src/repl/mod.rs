@@ -1,4 +1,5 @@
 use crate::{evaluator, lexer, parser};
+use crate::evaluator::environment::Environment;
 use indoc::indoc;
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
@@ -181,6 +182,9 @@ pub fn run_repl() {
     // Optionally load history from a file
     let history_path = ".carrion_history";
     let _ = rl.load_history(history_path);
+    
+    // Create a persistent environment for the REPL session
+    let mut env = Environment::new();
 
     loop {
         let readline = rl.readline(">>> ");
@@ -220,7 +224,7 @@ pub fn run_repl() {
                     continue; // Go to next loop iteration
                 }
 
-                match evaluator::eval(&program) {
+                match evaluator::eval_with_env(&program, &mut env) {
                     Ok(evaluated) => println!("{}", evaluated),
                     Err(e) => eprintln!("Evaluation Error: {}", e),
                 }

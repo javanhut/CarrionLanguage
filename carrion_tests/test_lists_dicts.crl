@@ -1,0 +1,49 @@
+// Test list creation and indexing
+let myList = [1, 2, 3, 4, 5]
+print("List:", myList)
+print("First element:", myList[0])
+print("Last element:", myList[4])
+print("List length:", len(myList))
+
+// Test list with mixed types
+let mixedList = [1, "hello", 3.14, True]
+print("Mixed list:", mixedList)
+
+// Test list operations
+let newList = push(myList, 6)
+print("After push:", newList)
+let poppedList = pop(newList)
+print("After pop:", poppedList)
+
+// Test dictionary creation and access
+let person = {"name": "John", "age": 30, "city": "New York"}
+print("Dictionary:", person)
+print("Name:", person["name"])
+print("Age:", person["age"])
+print("Dictionary length:", len(person))
+
+// Test dictionary with numeric keys
+let scores = {1: 100, 2: 85, 3: 90}
+print("Scores:", scores)
+print("Score for 1:", scores[1])
+
+// Test dictionary operations
+print("Keys:", keys(person))
+print("Values:", values(person))
+
+// Test nested structures
+let nested = {
+    "users": ["Alice", "Bob", "Charlie"],
+    "scores": [95, 87, 92]
+}
+print("Nested structure:", nested)
+print("First user:", nested["users"][0])
+print("Second score:", nested["scores"][1])
+
+// Test empty collections
+let emptyList = []
+let emptyDict = {}
+print("Empty list:", emptyList)
+print("Empty dict:", emptyDict)
+print("Empty list length:", len(emptyList))
+print("Empty dict length:", len(emptyDict))
