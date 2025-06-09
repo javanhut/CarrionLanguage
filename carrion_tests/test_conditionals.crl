@@ -1,0 +1,47 @@
+// Test if-otherwise-else statements with nesting
+
+// Basic if-otherwise-else
+x = 10
+if x > 15:
+    print("x is greater than 15")
+otherwise x > 5:
+    print("x is greater than 5 but not 15")
+else:
+    print("x is 5 or less")
+
+// Nested conditionals
+y = 8
+if y > 11:
+    print("y is large")
+otherwise y > 6:
+    print("y is medium")
+else:
+    print("y is small")
+// Multiple otherwise clauses
+score = 85
+if score >= 90:
+    print("A grade")
+otherwise score >= 80:
+    print("B grade")
+otherwise score >= 70:
+    print("C grade")
+otherwise score >= 60:
+    print("D grade")
+else:
+    print("F grade")
+// Testing with boolean values
+n = True
+if n:
+    print("flag is true")
+else:
+    print("flag is false")
+
+// Testing with expressions
+a = 5
+b = 3
+if a + b > 10:
+    print("sum is greater than 10")
+otherwise a * b > 10:
+    print("product is greater than 10")
+else:
+    print("neither sum nor product is greater than 10")

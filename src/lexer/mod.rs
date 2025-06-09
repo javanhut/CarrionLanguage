@@ -13,6 +13,10 @@ pub struct Lexer {
     current: usize,
     line: usize,
     file: PathBuf,
+    indent_stack: Vec<usize>,
+    at_line_start: bool,
+    pending_dedents: usize,
+    max_nesting_depth: usize,
 }
 
 impl Lexer {
@@ -25,6 +29,10 @@ impl Lexer {
             current: 0,
             line: 1,
             file,
+            indent_stack: vec![0], // Start with base indentation of 0
+            at_line_start: true,
+            pending_dedents: 0,
+            max_nesting_depth: 50, // Production limit
         }
     }
 
@@ -33,6 +41,12 @@ impl Lexer {
         while !self.is_at_end() {
             self.start = self.current;
             self.scan_token();
+        }
+
+        // Generate final dedents to close all open indentation levels
+        while self.indent_stack.len() > 1 {
+            self.indent_stack.pop();
+            self.add_simple(TokenType::Dedent);
         }
 
         // Append the final EOF token
@@ -106,6 +120,34 @@ impl Lexer {
     // ─── HIGH-LEVEL SCANNING LOGIC ────────────────────────────────────────────
 
     fn scan_token(&mut self) {
+        // Emit any pending dedent tokens
+        if self.pending_dedents > 0 {
+            self.pending_dedents -= 1;
+            self.add_simple(TokenType::Dedent);
+            return;
+        }
+
+        // Handle indentation at the start of a line
+        if self.at_line_start {
+            if let Err(e) = self.handle_indentation_safe() {
+                eprintln!("Indentation error at line {}: {}", self.line, e);
+                return;
+            }
+            self.at_line_start = false;
+            
+            // Update start position after consuming indentation whitespace
+            self.start = self.current;
+            
+            // If we generated dedent tokens, return to emit them
+            if self.pending_dedents > 0 {
+                return;
+            }
+            
+            if self.is_at_end() {
+                return;
+            }
+        }
+
         let c = match self.advance() {
             Some(ch) => ch,
             None => return,
@@ -225,7 +267,11 @@ impl Lexer {
 
             // whitespace / newlines -------------------------------------------
             ' ' | '\r' | '\t' => {}
-            '\n' => self.line += 1,
+            '\n' => {
+                self.line += 1;
+                self.at_line_start = true;
+                self.add_simple(TokenType::Newline);
+            }
 
             // literals ---------------------------------------------------------
             '\'' | '"' => self.string(c),
@@ -311,17 +357,140 @@ impl Lexer {
 
     /// Skip a C-style block comment `/* ... */`.
     fn block_comment(&mut self) {
+        let start_pos = self.current;
+        
         while !(self.peek() == Some('*') && self.peek_next() == Some('/')) && !self.is_at_end() {
             if self.peek() == Some('\n') {
                 self.line += 1;
             }
             self.advance();
+            
+            // Safety check to prevent infinite loops
+            if self.current > start_pos + 10000 {
+                eprintln!("Warning: Block comment too long, stopping at line {}", self.line);
+                break;
+            }
         }
 
         // Consume the trailing "*/" if present.
-        if !self.is_at_end() {
-            self.advance();
-            self.advance();
+        if !self.is_at_end() && self.peek() == Some('*') && self.peek_next() == Some('/') {
+            self.advance(); // consume '*'
+            self.advance(); // consume '/'
+        }
+    }
+
+    /// Handle indentation at the beginning of a line with production-ready error handling
+    fn handle_indentation_safe(&mut self) -> Result<(), String> {
+        let mut indent_level = 0;
+        let start_pos = self.current;
+        
+        // Count spaces and tabs at the beginning of the line
+        while let Some(ch) = self.peek() {
+            match ch {
+                ' ' => {
+                    indent_level += 1;
+                    self.advance();
+                }
+                '\t' => {
+                    indent_level += 8; // Consistent tab width
+                    self.advance();
+                }
+                '\n' | '\r' => {
+                    // Empty line, skip indentation handling
+                    return Ok(());
+                }
+                '#' => {
+                    // Line comment, skip entire line
+                    while self.peek() != Some('\n') && !self.is_at_end() {
+                        self.advance();
+                    }
+                    return Ok(());
+                }
+                '/' if self.peek_next() == Some('/') => {
+                    // C++ style comment, skip entire line
+                    while self.peek() != Some('\n') && !self.is_at_end() {
+                        self.advance();
+                    }
+                    return Ok(());
+                }
+                '/' if self.peek_next() == Some('*') => {
+                    // Block comment at start of line
+                    self.advance(); // consume '/'
+                    self.advance(); // consume '*'
+                    self.block_comment();
+                    if self.peek() == Some('\n') || self.is_at_end() {
+                        return Ok(());
+                    }
+                    // Continue checking for more whitespace/indentation
+                }
+                _ => break,
+            }
+            
+            // Safety check: prevent infinite loops
+            if self.current > start_pos + 1000 {
+                return Err("Excessive whitespace at line start".to_string());
+            }
+        }
+
+        // Validate indentation level
+        if indent_level > 1000 {
+            return Err("Indentation level too deep".to_string());
+        }
+
+        let current_indent = *self.indent_stack.last().unwrap_or(&0);
+        
+        if indent_level > current_indent {
+            // Check nesting depth limit
+            if self.indent_stack.len() >= self.max_nesting_depth {
+                return Err(format!("Maximum nesting depth ({}) exceeded", self.max_nesting_depth));
+            }
+            
+            // Increased indentation - emit INDENT
+            self.indent_stack.push(indent_level);
+            self.add_simple(TokenType::Indent);
+        } else if indent_level < current_indent {
+            // Decreased indentation - count how many dedents we need
+            let mut dedent_count = 0;
+            let mut temp_stack = self.indent_stack.clone();
+            
+            while let Some(&stack_level) = temp_stack.last() {
+                if stack_level <= indent_level {
+                    break;
+                }
+                temp_stack.pop();
+                dedent_count += 1;
+            }
+            
+            // Check if we have a matching indentation level
+            if temp_stack.last() != Some(&indent_level) {
+                return Err("Inconsistent indentation level".to_string());
+            }
+            
+            // Validate reasonable dedent count
+            if dedent_count > 20 {
+                return Err("Too many dedent levels at once".to_string());
+            }
+            
+            // Apply the dedents
+            for _ in 0..dedent_count {
+                self.indent_stack.pop();
+            }
+            
+            // Queue dedent tokens (emit one this cycle, queue the rest)
+            if dedent_count > 0 {
+                self.pending_dedents = dedent_count - 1;
+                self.add_simple(TokenType::Dedent);
+            }
+        }
+        // If indent_level == current_indent, no change needed
+        
+        Ok(())
+    }
+
+    /// Legacy indentation handler for backward compatibility
+    fn handle_indentation(&mut self) {
+        if let Err(e) = self.handle_indentation_safe() {
+            eprintln!("Indentation error at line {}: {}", self.line, e);
         }
     }
 }
