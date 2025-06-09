@@ -83,6 +83,8 @@ pub enum Operator {
     NotEqual,
     LessThan,
     GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
     And,
     Or,
     Not,

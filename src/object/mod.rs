@@ -28,7 +28,7 @@ pub enum Object {
     Boolean(bool),
     String(String),
     List(Vec<Object>),
-    Dict(HashMap<Object, Object>),
+    Dict(HashMap<String, Object>),
     ReturnValue(Box<Object>),
     Function(Function),
     Error(String),

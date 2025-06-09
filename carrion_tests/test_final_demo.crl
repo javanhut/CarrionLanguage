@@ -1,0 +1,27 @@
+// Comprehensive demo of lists and dictionaries
+
+// Create a list
+[1, 2, 3, 4, 5]
+
+// Create a dictionary  
+{"name": "Alice", "age": 25, "skills": ["Rust", "Python", "JavaScript"]}
+
+// Test indexing
+[10, 20, 30][1]
+
+// Test dictionary access
+{"city": "Paris", "population": 2200000}["city"]
+
+// Test builtin functions
+len([1, 2, 3, 4, 5])
+push([1, 2], 3)
+pop([1, 2, 3])
+keys({"a": 1, "b": 2, "c": 3})
+values({"x": 10, "y": 20})
+
+// Test nested structures
+[{"name": "Bob", "scores": [85, 90, 88]}, {"name": "Carol", "scores": [92, 87, 94]}][0]["name"]
+
+// Empty collections
+[]
+{}

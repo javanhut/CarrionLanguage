@@ -21,6 +21,30 @@ impl Environment {
                 func: super::builtins::builtin_length,
             }),
         );
+        store.insert(
+            "push".to_string(),
+            Object::Builtin(crate::object::Builtin {
+                func: super::builtins::builtin_push,
+            }),
+        );
+        store.insert(
+            "pop".to_string(),
+            Object::Builtin(crate::object::Builtin {
+                func: super::builtins::builtin_pop,
+            }),
+        );
+        store.insert(
+            "keys".to_string(),
+            Object::Builtin(crate::object::Builtin {
+                func: super::builtins::builtin_keys,
+            }),
+        );
+        store.insert(
+            "values".to_string(),
+            Object::Builtin(crate::object::Builtin {
+                func: super::builtins::builtin_values,
+            }),
+        );
 
         Self { store }
     }

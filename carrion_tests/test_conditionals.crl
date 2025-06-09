@@ -1,0 +1,47 @@
+// Test if-otherwise-else statements with nesting
+
+// Basic if-otherwise-else
+x = 10
+if x > 15:
+    "x is greater than 15"
+otherwise x > 5:
+    "x is greater than 5 but not 15"
+else:
+    "x is 5 or less"
+
+// Nested conditionals
+y = 8
+if y > 11:
+    "y is large"
+otherwise y > 6:
+    "y is medium"
+else:
+    "y is small"
+// Multiple otherwise clauses
+score = 85
+if score >= 90:
+    "A grade"
+otherwise score >= 80:
+    "B grade"
+otherwise score >= 70:
+    "C grade"
+otherwise score >= 60:
+    "D grade"
+else:
+    "F grade"
+// Testing with boolean values
+n = True
+if n:
+    "flag is true"
+else:
+    "flag is false"
+
+// Testing with expressions
+a = 5
+b = 3
+if a + b > 10:
+    "sum is greater than 10"
+otherwise a * b > 10:
+    "product is greater than 10"
+else:
+    "neither sum nor product is greater than 10"

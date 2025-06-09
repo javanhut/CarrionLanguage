@@ -1,4 +1,5 @@
 use crate::{evaluator, lexer, parser};
+use crate::evaluator::environment::Environment;
 use indoc::indoc;
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
@@ -112,21 +113,35 @@ fn print_commands_help() {
 
 fn print_syntax_help() {
     println!("\n=== Basic Syntax ===");
-    println!("  - Statements end with semicolons");
-    println!("  - Comments start with // (single line)");
-    println!("  - Blocks are enclosed in {{ }}");
+    println!("  - Statements are separated by newlines");
+    println!("  - Comments start with // (single line) or /* block */");
+    println!("  - Blocks use indentation (Python-style)");
+    println!("  - Colons (:) start indented blocks");
     println!("  - Identifiers: letters, numbers, underscores");
-    println!("  - Numbers: integers and floats supported\n");
+    println!("  - Numbers: integers (42) and floats (3.14)");
+    println!("  - Strings: \"double quotes\" or 'single quotes'");
+    println!("  - Booleans: True, False");
+    println!("  - Assignment: variable = value");
+    println!();
 }
 
 fn print_variables_help() {
     println!("\n=== Variables ===");
     println!("  Declaration:");
-    println!("    let x = 5;");
-    println!("    let name = \"Odin\";");
-    println!("    let is_raven = true;");
-    println!("\n  Variables are immutable by default.");
-    println!("  Reassignment creates a new binding.\n");
+    println!("    x = 5");
+    println!("    name = \"Odin\"");
+    println!("    is_raven = True");
+    println!("    pi = 3.14159");
+    println!();
+    println!("  Multiple Assignment:");
+    println!("    a, b, c = 1, 2, 3");
+    println!("    x, y = coordinates");
+    println!();
+    println!("  Compound Assignment:");
+    println!("    count += 1");
+    println!("    total *= 2");
+    println!("    balance -= fee");
+    println!();
 }
 
 fn print_functions_help() {
@@ -142,24 +157,60 @@ fn print_functions_help() {
 
 fn print_control_flow_help() {
     println!("\n=== Control Flow ===");
-    println!("  If/Else:");
-    println!("    if (x > 5) {{");
-    println!("        \"greater\";");
-    println!("    }} else {{");
-    println!("        \"lesser\";");
-    println!("    }}");
-    println!("\n  Conditionals are expressions that return values.\n");
+    println!("  If/Otherwise/Else Statements:");
+    println!("    score = 85");
+    println!("    if score >= 90:");
+    println!("        \"A grade\"");
+    println!("    otherwise score >= 80:");
+    println!("        \"B grade\"");
+    println!("    otherwise score >= 70:");
+    println!("        \"C grade\"");
+    println!("    else:");
+    println!("        \"F grade\"");
+    println!();
+    println!("  Simple If/Else:");
+    println!("    if x > 5:");
+    println!("        \"greater than 5\"");
+    println!("    else:");
+    println!("        \"5 or less\"");
+    println!();
+    println!("  Nested Conditionals:");
+    println!("    if condition1:");
+    println!("        if condition2:");
+    println!("            \"both true\"");
+    println!("        else:");
+    println!("            \"only first true\"");
+    println!();
+    println!("  Features:");
+    println!("    • Multiple 'otherwise' clauses supported");
+    println!("    • Indentation-based block structure");
+    println!("    • Comparison operators: >, <, >=, <=, ==, !=");
+    println!("    • Production-ready with safety limits");
+    println!();
 }
 
 fn print_data_structures_help() {
     println!("\n=== Data Structures ===");
-    println!("  Arrays:");
-    println!("    let numbers = [1, 2, 3, 4, 5];");
-    println!("    let mixed = [1, \"two\", true];");
-    println!("\n  Hashes:");
-    println!("    let person = {{\"name\": \"Loki\", \"age\": 1000}};");
-    println!("    let config = {{\"debug\": true, \"port\": 8080}};");
-    println!("\n  Access elements with indexing:\n    numbers[0], person[\"name\"]\n");
+    println!("  Lists:");
+    println!("    numbers = [1, 2, 3, 4, 5]");
+    println!("    mixed = [1, \"two\", True]");
+    println!("    empty = []");
+    println!();
+    println!("  Dictionaries:");
+    println!("    person = {{\"name\": \"Loki\", \"age\": 1000}}");
+    println!("    config = {{\"debug\": True, \"port\": 8080}}");
+    println!("    scores = {{\"alice\": 95, \"bob\": 87}}");
+    println!();
+    println!("  Indexing:");
+    println!("    first_number = numbers[0]");
+    println!("    person_name = person[\"name\"]");
+    println!("    alice_score = scores[\"alice\"]");
+    println!();
+    println!("  Features:");
+    println!("    • Lists support mixed types");
+    println!("    • Dictionaries use any hashable key");
+    println!("    • Zero-based indexing");
+    println!();
 }
 
 fn print_builtins_help() {
@@ -181,6 +232,9 @@ pub fn run_repl() {
     // Optionally load history from a file
     let history_path = ".carrion_history";
     let _ = rl.load_history(history_path);
+    
+    // Create a persistent environment for the REPL session
+    let mut env = Environment::new();
 
     loop {
         let readline = rl.readline(">>> ");
@@ -220,7 +274,7 @@ pub fn run_repl() {
                     continue; // Go to next loop iteration
                 }
 
-                match evaluator::eval(&program) {
+                match evaluator::eval_with_env(&program, &mut env) {
                     Ok(evaluated) => println!("{}", evaluated),
                     Err(e) => eprintln!("Evaluation Error: {}", e),
                 }

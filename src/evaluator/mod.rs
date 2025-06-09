@@ -1,13 +1,17 @@
 pub mod builtins;
 pub mod environment;
 
-use crate::ast::{Expression, Identifier, Operator, Program, Statement};
+use crate::ast::{Expression, Identifier, Operator, Program, Statement, Assignment, CompoundAssignment, IfStatement, WhileStatement, ForStatement, BlockStatement};
 use crate::object::{Builtin, BuiltinFunction, Function, Object};
 use environment::Environment;
 
 pub fn eval(program: &Program) -> Result<Object, String> {
     let mut env = Environment::new();
     eval_program(program, &mut env)
+}
+
+pub fn eval_with_env(program: &Program, env: &mut Environment) -> Result<Object, String> {
+    eval_program(program, env)
 }
 
 fn eval_program(program: &Program, env: &mut Environment) -> Result<Object, String> {
@@ -33,6 +37,80 @@ fn eval_statement(statement: &Statement, env: &mut Environment) -> Result<Object
             };
             Ok(Object::ReturnValue(Box::new(value)))
         }
+        Statement::Assignment(assignment) => {
+            // Evaluate the right-hand side value
+            let value = eval_expression(&assignment.value, env)?;
+            
+            // Handle single assignment
+            if assignment.targets.len() == 1 {
+                if let Expression::Identifier(ident) = &assignment.targets[0] {
+                    env.set(ident.0.clone(), value.clone());
+                    Ok(value)
+                } else {
+                    Err("Assignment target must be an identifier".to_string())
+                }
+            } else {
+                // Handle multiple assignment (unpacking)
+                match &value {
+                    Object::List(values) => {
+                        if values.len() != assignment.targets.len() {
+                            return Err(format!(
+                                "Assignment count mismatch: {} targets but {} values",
+                                assignment.targets.len(),
+                                values.len()
+                            ));
+                        }
+                        
+                        for (i, target) in assignment.targets.iter().enumerate() {
+                            if let Expression::Identifier(ident) = target {
+                                env.set(ident.0.clone(), values[i].clone());
+                            } else {
+                                return Err("Assignment target must be an identifier".to_string());
+                            }
+                        }
+                        Ok(value)
+                    }
+                    _ => {
+                        // If it's not a list, assign the same value to all targets
+                        for target in &assignment.targets {
+                            if let Expression::Identifier(ident) = target {
+                                env.set(ident.0.clone(), value.clone());
+                            } else {
+                                return Err("Assignment target must be an identifier".to_string());
+                            }
+                        }
+                        Ok(value)
+                    }
+                }
+            }
+        }
+        Statement::CompoundAssignment(compound_assignment) => {
+            // Get the current value of the target
+            if let Expression::Identifier(ident) = &compound_assignment.target {
+                let current_value = env.get(&ident.0)
+                    .ok_or_else(|| format!("Undefined variable: {}", ident.0))?
+                    .clone();
+                    
+                // Evaluate the right-hand side
+                let rhs_value = eval_expression(&compound_assignment.value, env)?;
+                
+                // Perform the compound operation
+                let new_value = eval_infix_expression(
+                    &compound_assignment.operator,
+                    current_value,
+                    rhs_value
+                )?;
+                
+                // Set the new value
+                env.set(ident.0.clone(), new_value.clone());
+                Ok(new_value)
+            } else {
+                Err("Compound assignment target must be an identifier".to_string())
+            }
+        }
+        Statement::If(if_stmt) => eval_if_statement(if_stmt, env),
+        Statement::While(while_stmt) => eval_while_statement(while_stmt, env),
+        Statement::For(for_stmt) => eval_for_statement(for_stmt, env),
         _ => Err(format!(
             "Evaluation for this statement type is not yet implemented: {:?}",
             statement
@@ -64,6 +142,31 @@ fn eval_expression(expression: &Expression, env: &mut Environment) -> Result<Obj
                 args.push(eval_expression(arg_expr, env)?);
             }
             apply_function(function_obj, args)
+        }
+        Expression::List(elements) => {
+            let mut list_objects = Vec::new();
+            for elem in elements {
+                list_objects.push(eval_expression(elem, env)?);
+            }
+            Ok(Object::List(list_objects))
+        }
+        Expression::Dict { pairs } => {
+            let mut dict_map = std::collections::HashMap::new();
+            for (key_expr, value_expr) in pairs {
+                let key_obj = eval_expression(key_expr, env)?;
+                let key_str = match key_obj {
+                    Object::String(s) => s,
+                    _ => key_obj.to_string(),
+                };
+                let value_obj = eval_expression(value_expr, env)?;
+                dict_map.insert(key_str, value_obj);
+            }
+            Ok(Object::Dict(dict_map))
+        }
+        Expression::Index(index_expr) => {
+            let object = eval_expression(&index_expr.object, env)?;
+            let index = eval_expression(&index_expr.index, env)?;
+            eval_index_expression(object, index)
         }
         _ => Err(format!(
             "Evaluation for this expression type is not yet implemented: {:?}",
@@ -147,6 +250,8 @@ fn eval_integer_infix_operator(
         Operator::NotEqual => Ok(Object::Boolean(left != right)),
         Operator::LessThan => Ok(Object::Boolean(left < right)),
         Operator::GreaterThan => Ok(Object::Boolean(left > right)),
+        Operator::LessThanEqual => Ok(Object::Boolean(left <= right)),
+        Operator::GreaterThanEqual => Ok(Object::Boolean(left >= right)),
         _ => Err(format!("Unknown operator for Integers: {:?}", operator)),
     }
 }
@@ -161,6 +266,8 @@ fn eval_float_infix_operator(operator: &Operator, left: f64, right: f64) -> Resu
         Operator::NotEqual => Ok(Object::Boolean(left != right)),
         Operator::LessThan => Ok(Object::Boolean(left < right)),
         Operator::GreaterThan => Ok(Object::Boolean(left > right)),
+        Operator::LessThanEqual => Ok(Object::Boolean(left <= right)),
+        Operator::GreaterThanEqual => Ok(Object::Boolean(left >= right)),
         _ => Err(format!("Unknown operator for Floats: {:?}", operator)),
     }
 }
@@ -171,4 +278,131 @@ fn is_truthy(object: Object) -> bool {
         Object::None => false,
         _ => true,
     }
+}
+
+fn eval_index_expression(object: Object, index: Object) -> Result<Object, String> {
+    match (&object, &index) {
+        (Object::List(elements), Object::Integer(idx)) => {
+            let idx = *idx as usize;
+            if idx < elements.len() {
+                Ok(elements[idx].clone())
+            } else {
+                Err(format!("Index out of bounds: {} (list length: {})", idx, elements.len()))
+            }
+        }
+        (Object::Dict(map), key) => {
+            let key_str = match key {
+                Object::String(s) => s.clone(),
+                _ => key.to_string(),
+            };
+            if let Some(value) = map.get(&key_str) {
+                Ok(value.clone())
+            } else {
+                Ok(Object::None)
+            }
+        }
+        (Object::String(s), Object::Integer(idx)) => {
+            let idx = *idx as usize;
+            let chars: Vec<char> = s.chars().collect();
+            if idx < chars.len() {
+                Ok(Object::String(chars[idx].to_string()))
+            } else {
+                Err(format!("Index out of bounds: {} (string length: {})", idx, chars.len()))
+            }
+        }
+        _ => Err(format!("Index operation not supported for {} with index {}", object, index)),
+    }
+}
+
+fn eval_if_statement(if_stmt: &IfStatement, env: &mut Environment) -> Result<Object, String> {
+    let condition = eval_expression(&if_stmt.condition, env)?;
+    
+    if is_truthy(condition) {
+        eval_block_statement(&if_stmt.consequence, env)
+    } else {
+        // Check otherwise clauses
+        for (alt_condition, alt_consequence) in &if_stmt.alternatives {
+            let alt_cond_result = eval_expression(alt_condition, env)?;
+            if is_truthy(alt_cond_result) {
+                return eval_block_statement(alt_consequence, env);
+            }
+        }
+        
+        // Check else clause
+        if let Some(default_block) = &if_stmt.default {
+            eval_block_statement(default_block, env)
+        } else {
+            Ok(Object::None)
+        }
+    }
+}
+
+fn eval_while_statement(while_stmt: &WhileStatement, env: &mut Environment) -> Result<Object, String> {
+    let mut result = Object::None;
+    
+    loop {
+        let condition = eval_expression(&while_stmt.condition, env)?;
+        if !is_truthy(condition) {
+            break;
+        }
+        
+        result = eval_block_statement(&while_stmt.body, env)?;
+        
+        // Handle return values
+        if let Object::ReturnValue(_) = result {
+            break;
+        }
+    }
+    
+    Ok(result)
+}
+
+fn eval_for_statement(for_stmt: &ForStatement, env: &mut Environment) -> Result<Object, String> {
+    let iterable = eval_expression(&for_stmt.iter, env)?;
+    let mut result = Object::None;
+    
+    match iterable {
+        Object::List(elements) => {
+            for element in elements {
+                env.set(for_stmt.target.0.clone(), element);
+                result = eval_block_statement(&for_stmt.body, env)?;
+                
+                // Handle return values
+                if let Object::ReturnValue(_) = result {
+                    break;
+                }
+            }
+        }
+        Object::String(s) => {
+            for ch in s.chars() {
+                env.set(for_stmt.target.0.clone(), Object::String(ch.to_string()));
+                result = eval_block_statement(&for_stmt.body, env)?;
+                
+                // Handle return values
+                if let Object::ReturnValue(_) = result {
+                    break;
+                }
+            }
+        }
+        _ => {
+            return Err(format!("Object is not iterable: {}", iterable));
+        }
+    }
+    
+    Ok(result)
+}
+
+fn eval_block_statement(block: &BlockStatement, env: &mut Environment) -> Result<Object, String> {
+    let mut result = Object::None;
+    
+    for statement in block {
+        result = eval_statement(statement, env)?;
+        
+        // Handle return values
+        if let Object::ReturnValue(_) = result {
+            break;
+        }
+    }
+    
+    Ok(result)
 }
