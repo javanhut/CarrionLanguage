@@ -61,7 +61,13 @@ impl fmt::Display for Object {
         match self {
             Object::Integer(val) => write!(f, "{}", val),
             Object::Float(val) => write!(f, "{}", val),
-            Object::Boolean(val) => write!(f, "{}", val),
+            Object::Boolean(val) => {
+                if *val {
+                    write!(f, "True")
+                } else {
+                    write!(f, "False")
+                }
+            }
             Object::String(val) => write!(f, "{}", val),
             Object::List(items) => {
                 let parts: Vec<String> = items.iter().map(|i| i.to_string()).collect();
@@ -75,7 +81,7 @@ impl fmt::Display for Object {
             Object::Function(_) => write!(f, "[Function]"),
             Object::Builtin(_) => write!(f, "[Builtin Function]"),
             Object::Error(msg) => write!(f, "Error: {}", msg),
-            Object::None => write!(f, "none"),
+            Object::None => write!(f, "None"),
         }
     }
 }
